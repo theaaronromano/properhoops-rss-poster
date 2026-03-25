@@ -1,16 +1,16 @@
 {
   "name": "properhoops-rss-poster",
   "version": "1.0.0",
-  "description": "RSS and Web Scraper for Ghost",
+  "description": "Auto-posts basketball news to Ghost from league websites",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@tryghost/admin-api": "^1.13.11",
-    "axios": "^1.6.2",
-    "cheerio": "^1.0.0-rc.12",
-    "cron": "^3.1.6",
-    "rss-parser": "^3.13.0"
+    "node-fetch": "2",
+    "rss-parser": "^3.13.0",
+    "cheerio": "^1.0.0",
+    "ghost-admin-api": "^1.13.11",
+    "node-cron": "^3.0.3"
   }
 }
