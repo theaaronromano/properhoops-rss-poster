@@ -3,15 +3,12 @@ const RSSParser = require('rss-parser');
 const cheerio = require('cheerio');
 const GhostAdminAPI = require('@tryghost/admin-api');
 const cron = require('node-cron');
-const fs = require('fs');
-const path = require('path');
 
 // ─── Config ────────────────────────────────────────────────────────────────
 const GHOST_URL = process.env.GHOST_URL || 'https://www.properhoops.au';
 const GHOST_ADMIN_KEY = process.env.GHOST_ADMIN_KEY || '69c3503c0eefc50001bae904:bcefcb5444e460031f30fcbfb0d943324c99bfa207aa5d3afb51d61a708821c5';
-const POLL_INTERVAL = process.env.POLL_INTERVAL || '*/30 * * * *'; // every 30 mins
-const SEEN_FILE = path.join(__dirname, 'seen.json');
-const DRY_RUN = process.env.DRY_RUN === 'true'; // set to true to test without posting
+const POLL_INTERVAL = process.env.POLL_INTERVAL || '*/30 * * * *';
+const DRY_RUN = process.env.DRY_RUN === 'true';
 
 // ─── Ghost client ──────────────────────────────────────────────────────────
 const ghost = new GhostAdminAPI({
@@ -27,10 +24,7 @@ const parser = new RSSParser({
 });
 
 // ─── Sources ───────────────────────────────────────────────────────────────
-// type: 'rss' uses RSS parser directly
-// type: 'scrape' uses cheerio to scrape the news page
 const SOURCES = [
-    // NBA — ESPN RSS (most reliable)
     {
         id: 'nba-espn',
         label: 'NBA',
@@ -39,7 +33,6 @@ const SOURCES = [
         url: 'https://www.espn.com/espn/rss/nba/news',
         tag: 'NBA'
     },
-    // WNBA — ESPN RSS
     {
         id: 'wnba-espn',
         label: 'WNBA',
@@ -48,7 +41,6 @@ const SOURCES = [
         url: 'https://www.espn.com/espn/rss/wnba/news',
         tag: 'WNBA'
     },
-    // NCAA Basketball — ESPN RSS
     {
         id: 'ncaa-espn',
         label: 'NCAA Basketball',
@@ -57,7 +49,6 @@ const SOURCES = [
         url: 'https://www.espn.com/espn/rss/ncb/news',
         tag: 'NCAA Basketball'
     },
-    // NBL — scrape nbl.com.au/news
     {
         id: 'nbl',
         label: 'NBL',
@@ -74,7 +65,6 @@ const SOURCES = [
             summary: 'p, .summary, [class*="summary"], [class*="excerpt"]'
         }
     },
-    // WNBL — scrape wnbl.com.au/news
     {
         id: 'wnbl',
         label: 'WNBL',
@@ -91,7 +81,6 @@ const SOURCES = [
             summary: 'p, .summary, [class*="summary"], [class*="excerpt"]'
         }
     },
-    // FIBA — scrape fiba.basketball/en/news
     {
         id: 'fiba',
         label: 'FIBA',
@@ -108,7 +97,6 @@ const SOURCES = [
             summary: 'p, .summary, [class*="summary"]'
         }
     },
-    // Unrivaled — scrape unrivaled.basketball/news
     {
         id: 'unrivaled',
         label: 'Unrivaled',
@@ -127,26 +115,32 @@ const SOURCES = [
     }
 ];
 
-// ─── Seen tracking ─────────────────────────────────────────────────────────
-function loadSeen() {
+// ─── Duplicate check via Ghost ─────────────────────────────────────────────
+// Instead of a local file, we check Ghost itself for existing posts
+// by searching for the external URL stored in twitter_description
+let postedUrls = new Set();
+
+async function loadPostedUrls() {
     try {
-        if (fs.existsSync(SEEN_FILE)) {
-            return JSON.parse(fs.readFileSync(SEEN_FILE, 'utf8'));
+        console.log('Loading existing posts from Ghost...');
+        let page = 1;
+        let hasMore = true;
+        while (hasMore) {
+            const posts = await ghost.posts.browse({
+                limit: 100,
+                page,
+                fields: 'id,twitter_description',
+                filter: 'tag:Auto-Posted'
+            });
+            posts.forEach(p => {
+                if (p.twitter_description) postedUrls.add(p.twitter_description);
+            });
+            hasMore = posts.meta && posts.meta.pagination && page < posts.meta.pagination.pages;
+            page++;
         }
-    } catch (e) {}
-    return {};
-}
-
-function saveSeen(seen) {
-    fs.writeFileSync(SEEN_FILE, JSON.stringify(seen, null, 2));
-}
-
-function markSeen(seen, id) {
-    seen[id] = Date.now();
-    // Clean up entries older than 30 days
-    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    for (const key of Object.keys(seen)) {
-        if (seen[key] < cutoff) delete seen[key];
+        console.log(`Loaded ${postedUrls.size} already-posted URLs from Ghost`);
+    } catch (e) {
+        console.error('Could not load existing posts:', e.message);
     }
 }
 
@@ -170,7 +164,6 @@ async function fetchRSS(source) {
 }
 
 function extractRSSImage(item) {
-    // Try various RSS image fields
     if (item.enclosure && item.enclosure.url) return item.enclosure.url;
     if (item['media:content'] && item['media:content']['$'] && item['media:content']['$'].url) {
         return item['media:content']['$'].url;
@@ -178,7 +171,6 @@ function extractRSSImage(item) {
     if (item['media:thumbnail'] && item['media:thumbnail']['$'] && item['media:thumbnail']['$'].url) {
         return item['media:thumbnail']['$'].url;
     }
-    // Try to find image in content
     if (item.content) {
         const match = item.content.match(/<img[^>]+src=["']([^"']+)["']/i);
         if (match) return match[1];
@@ -202,31 +194,26 @@ async function fetchScrape(source) {
         const articles = [];
 
         $(source.selectors.articles).each((i, el) => {
-            if (i >= 20) return false; // max 20 articles
-
+            if (i >= 20) return false;
             const $el = $(el);
 
-            // Get link
             let url = $el.find(source.selectors.link).first().attr('href') ||
-                       $el.closest('a').attr('href') ||
-                       $el.attr('href');
+                      $el.closest('a').attr('href') ||
+                      $el.attr('href');
             if (!url) return;
             if (url.startsWith('/')) url = source.baseUrl + url;
             if (!url.startsWith('http')) return;
             if (url === source.url || url === source.baseUrl + '/') return;
 
-            // Get title
             const title = $el.find(source.selectors.title).first().text().trim() ||
                           $el.find('h1,h2,h3,h4').first().text().trim();
             if (!title || title.length < 5) return;
 
-            // Get image
             let image = $el.find(source.selectors.image).first().attr('src') ||
                         $el.find('img').first().attr('src') ||
                         $el.find('img').first().attr('data-src');
             if (image && image.startsWith('/')) image = source.baseUrl + image;
 
-            // Get summary
             const summary = $el.find(source.selectors.summary).first().text().trim();
 
             articles.push({
@@ -240,7 +227,6 @@ async function fetchScrape(source) {
             });
         });
 
-        // Deduplicate by URL
         const seen = new Set();
         return articles.filter(a => {
             if (seen.has(a.url)) return false;
@@ -275,7 +261,6 @@ async function fetchOGImage(url) {
 // ─── Post to Ghost ─────────────────────────────────────────────────────────
 async function postToGhost(article) {
     try {
-        // Try to get OG image if we don't have one
         let image = article.image;
         if (!image && article.url) {
             console.log(`  Fetching OG image from ${article.url}`);
@@ -285,15 +270,10 @@ async function postToGhost(article) {
         const postData = {
             title: article.title,
             status: 'published',
-            // Store external URL in twitter_description (how your theme handles link posts)
             twitter_description: article.url,
-            // Store source name in twitter_title
             twitter_title: article.source,
-            // Tag by sport
             tags: [{ name: article.tag }, { name: 'Auto-Posted' }],
-            // Use OG image as feature image if available
             feature_image: image || undefined,
-            // Use summary as excerpt if available
             custom_excerpt: article.summary ? article.summary.slice(0, 300) : undefined
         };
 
@@ -303,7 +283,8 @@ async function postToGhost(article) {
         }
 
         const post = await ghost.posts.add(postData, { source: 'html' });
-        console.log(`  ✅ Posted: "${article.title}" → ${post.url}`);
+        postedUrls.add(article.url);
+        console.log(`  ✅ Posted: "${article.title}"`);
         return true;
     } catch (e) {
         console.error(`  ❌ Failed to post "${article.title}":`, e.message);
@@ -311,15 +292,13 @@ async function postToGhost(article) {
     }
 }
 
-// ─── Main poll loop ────────────────────────────────────────────────────────
+// ─── Main poll ─────────────────────────────────────────────────────────────
 async function poll() {
     console.log(`\n[${new Date().toISOString()}] Polling ${SOURCES.length} sources...`);
-    const seen = loadSeen();
     let totalNew = 0;
 
     for (const source of SOURCES) {
         console.log(`\n→ ${source.id} (${source.type})`);
-        
         const articles = source.type === 'rss'
             ? await fetchRSS(source)
             : await fetchScrape(source);
@@ -327,23 +306,26 @@ async function poll() {
         console.log(`  Found ${articles.length} articles`);
 
         for (const article of articles) {
-            const id = `${source.id}:${article.id}`;
-            if (seen[id]) continue; // already posted
+            if (postedUrls.has(article.url)) continue;
 
             console.log(`  New: "${article.title}"`);
             const ok = await postToGhost(article);
             if (ok) {
-                markSeen(seen, id);
                 totalNew++;
-                // Small delay between posts to avoid rate limiting
                 await new Promise(r => setTimeout(r, 1000));
             }
         }
     }
 
-    saveSeen(seen);
     console.log(`\n✓ Done. ${totalNew} new articles posted.`);
 }
+
+// ─── Health check server (keeps Render free tier alive) ───────────────────
+const http = require('http');
+http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end('OK');
+}).listen(process.env.PORT || 3000);
 
 // ─── Start ─────────────────────────────────────────────────────────────────
 console.log('ProperHoops RSS Poster starting...');
@@ -351,10 +333,9 @@ console.log(`Ghost URL: ${GHOST_URL}`);
 console.log(`Poll interval: ${POLL_INTERVAL}`);
 console.log(`Dry run: ${DRY_RUN}`);
 
-// Run immediately on startup
-poll().catch(console.error);
-
-// Then run on schedule
-cron.schedule(POLL_INTERVAL, () => {
+loadPostedUrls().then(() => {
     poll().catch(console.error);
+    cron.schedule(POLL_INTERVAL, () => {
+        poll().catch(console.error);
+    });
 });
