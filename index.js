@@ -112,37 +112,13 @@ const SOURCES = [
             summary: 'p, [class*="excerpt"], [class*="summary"]'
         }
     },
-    // NCAA Men's basketball news
+    // NCAA Women's Basketball — CBS Sports RSS
     {
-        id: 'ncaa-men',
-        source: 'NCAA',
+        id: 'cbs-ncaaw',
+        source: 'CBS Sports',
         tag: 'NCAA Basketball',
-        type: 'scrape',
-        url: 'https://www.ncaa.com/sports/basketball-men/d1',
-        baseUrl: 'https://www.ncaa.com',
-        selectors: {
-            articles: 'article, [class*="news"], [class*="article"], [class*="story"]',
-            title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
-            link: 'a',
-            image: 'img',
-            summary: 'p, [class*="excerpt"], [class*="summary"]'
-        }
-    },
-    // NCAA Women's basketball news
-    {
-        id: 'ncaa-women',
-        source: 'NCAA',
-        tag: 'NCAA Basketball',
-        type: 'scrape',
-        url: 'https://www.ncaa.com/sports/basketball-women/d1',
-        baseUrl: 'https://www.ncaa.com',
-        selectors: {
-            articles: 'article, [class*="news"], [class*="article"], [class*="story"]',
-            title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
-            link: 'a',
-            image: 'img',
-            summary: 'p, [class*="excerpt"], [class*="summary"]'
-        }
+        type: 'rss',
+        url: 'https://www.cbssports.com/rss/headlines/college-basketball-women'
     },
     // NBL
     {
