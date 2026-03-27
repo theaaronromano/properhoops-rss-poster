@@ -29,7 +29,8 @@ const SOURCES = [
         source: 'AP News',
         tag: 'NCAA Basketball',
         type: 'rss',
-        url: 'https://apnews.com/hub/womens-college-basketball.rss'
+        url: 'https://rsshub.app/apnews/topics/womens-college-basketball',
+        customHeaders: { 'Accept': 'application/rss+xml, application/xml, text/xml' }
     },
 
     // ── Scrapers ──────────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ const SOURCES = [
         source: 'Basketball Australia',
         tag: 'Basketball Australia',
         type: 'scrape',
-        url: 'https://www.basketball.com.au/news/',
+        url: 'https://www.basketball.com.au/news',
         baseUrl: 'https://www.basketball.com.au',
         selectors: {
             articles: 'article, [class*="news"], [class*="card"], [class*="post"]',
@@ -152,6 +153,7 @@ const SOURCES = [
         type: 'scrape',
         url: 'https://www.euroleaguebasketball.net/euroleague/news/',
         baseUrl: 'https://www.euroleaguebasketball.net',
+        delay: 5000,
         selectors: {
             articles: 'article, [class*="news"], [class*="card"], [class*="article"]',
             title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
@@ -250,6 +252,7 @@ function extractRSSImage(item) {
 
 async function fetchScrape(source) {
     try {
+        if (source.delay) await new Promise(r => setTimeout(r, source.delay));
         const res = await fetch(source.url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -282,6 +285,8 @@ async function fetchScrape(source) {
             // Skip obvious nav/section headers
             const skipTitles = ['basketball', 'news', 'latest', 'home', 'menu', 'search', 'more', 'sports'];
             if (skipTitles.includes(title.toLowerCase())) return;
+            // Skip press release boilerplate (very long titles with company names)
+            if (title.length > 120) return;
 
             // Get image
             let image = $el.find('img').first().attr('src') || $el.find('img').first().attr('data-src') || $el.find('img').first().attr('data-lazy-src');
@@ -319,7 +324,7 @@ async function postToGhost(article) {
         if (DRY_RUN) { console.log(`  [DRY RUN] "${article.title}" (${article.source})`); return true; }
 
         await ghost.posts.add({
-            title: article.title,
+            title: article.title.slice(0, 255),
             status: 'published',
             twitter_description: article.url,
             twitter_title: article.source,
