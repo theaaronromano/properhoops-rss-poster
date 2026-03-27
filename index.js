@@ -53,11 +53,11 @@ const SOURCES = [
         source: 'Basketball Australia',
         tag: 'Basketball Australia',
         type: 'scrape',
-        url: 'https://www.basketball.com.au/news',
+        url: 'https://www.basketball.com.au/',
         baseUrl: 'https://www.basketball.com.au',
         selectors: {
-            articles: 'article, [class*="news"], [class*="card"], [class*="post"]',
-            title: 'h2, h3, h4, [class*="title"]',
+            articles: 'article, [class*="news"], [class*="card"], [class*="post"], [class*="item"]',
+            title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
             link: 'a',
             image: 'img'
         }
@@ -253,10 +253,18 @@ function extractRSSImage(item) {
 async function fetchScrape(source) {
     try {
         if (source.delay) await new Promise(r => setTimeout(r, source.delay));
+        const userAgents = [
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        ];
+        const ua = userAgents[Math.floor(Math.random() * userAgents.length)];
         const res = await fetch(source.url, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                'User-Agent': ua,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Cache-Control': 'no-cache'
             },
             timeout: 15000
         });
