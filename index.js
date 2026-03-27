@@ -11,60 +11,28 @@ const POLL_MINUTES = parseInt(process.env.POLL_MINUTES || '30');
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
 // ─── Ghost client ──────────────────────────────────────────────────────────
-const ghost = new GhostAdminAPI({
-    url: GHOST_URL,
-    key: GHOST_ADMIN_KEY,
-    version: 'v5.0'
-});
-
-const parser = new RSSParser({
-    timeout: 10000,
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProperHoopsBot/1.0)' }
-});
+const ghost = new GhostAdminAPI({ url: GHOST_URL, key: GHOST_ADMIN_KEY, version: 'v5.0' });
+const parser = new RSSParser({ timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProperHoopsBot/1.0)' } });
 
 // ─── Sources ───────────────────────────────────────────────────────────────
 const SOURCES = [
-    // NBA.com — RSS via their news feed
+    // ── RSS feeds (reliable) ──────────────────────────────────────────────
     {
-        id: 'nba',
-        source: 'NBA',
-        tag: 'NBA',
+        id: 'highposthoops',
+        source: 'High Post Hoops',
+        tag: 'WNBA',
         type: 'rss',
-        url: 'https://www.nba.com/rss/nba_rss.xml'
+        url: 'https://highposthoops.com/feed'
     },
-    // CBS Sports — NCAA Men's Basketball RSS
     {
-        id: 'cbs-ncaam',
-        source: 'CBS Sports',
+        id: 'apnews-ncaaw',
+        source: 'AP News',
         tag: 'NCAA Basketball',
         type: 'rss',
-        url: 'https://www.cbssports.com/rss/headlines/college-basketball'
+        url: 'https://apnews.com/hub/womens-college-basketball.rss'
     },
-    // CBS Sports — NBA RSS
-    {
-        id: 'cbs-nba',
-        source: 'CBS Sports',
-        tag: 'NBA',
-        type: 'rss',
-        url: 'https://www.cbssports.com/rss/headlines/nba'
-    },
-    // Front Office Sports — basketball tag (scrape)
-    {
-        id: 'fos-basketball',
-        source: 'Front Office Sports',
-        tag: 'Basketball',
-        type: 'scrape',
-        url: 'https://frontofficesports.com/tag/basketball/',
-        baseUrl: 'https://frontofficesports.com',
-        selectors: {
-            articles: 'article, .post-card, [class*="article"], [class*="post-item"]',
-            title: 'h2, h3, [class*="title"], [class*="heading"]',
-            link: 'a',
-            image: 'img, [class*="thumbnail"]',
-            summary: 'p, [class*="excerpt"], [class*="summary"]'
-        }
-    },
-    // Fox Sports Australia — basketball
+
+    // ── Scrapers ──────────────────────────────────────────────────────────
     {
         id: 'foxsports-au',
         source: 'Fox Sports AU',
@@ -73,14 +41,12 @@ const SOURCES = [
         url: 'https://www.foxsports.com.au/basketball/latest-news',
         baseUrl: 'https://www.foxsports.com.au',
         selectors: {
-            articles: 'article, [class*="article"], [class*="story"], [class*="card"]',
+            articles: 'article, [class*="article"], [class*="story-block"], [class*="card"]',
             title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
             link: 'a',
-            image: 'img',
-            summary: 'p, [class*="summary"], [class*="excerpt"]'
+            image: 'img'
         }
     },
-    // Basketball Australia
     {
         id: 'basketball-au',
         source: 'Basketball Australia',
@@ -89,54 +55,26 @@ const SOURCES = [
         url: 'https://www.basketball.com.au/news/',
         baseUrl: 'https://www.basketball.com.au',
         selectors: {
-            articles: 'article, [class*="news-item"], [class*="article"], [class*="card"]',
+            articles: 'article, [class*="news"], [class*="card"], [class*="post"]',
             title: 'h2, h3, h4, [class*="title"]',
             link: 'a',
-            image: 'img',
-            summary: 'p, [class*="excerpt"], [class*="summary"]'
+            image: 'img'
         }
     },
-    // Australia Basketball (national team / BA official)
     {
-        id: 'australia-basketball',
-        source: 'Australia Basketball',
-        tag: 'Basketball Australia',
+        id: 'fos-basketball',
+        source: 'Front Office Sports',
+        tag: 'Basketball',
         type: 'scrape',
-        url: 'https://www.australia.basketball/news',
-        baseUrl: 'https://www.australia.basketball',
+        url: 'https://frontofficesports.com/tag/basketball/',
+        baseUrl: 'https://frontofficesports.com',
         selectors: {
-            articles: 'article, [class*="news"], [class*="article"], [class*="card"], [class*="post"]',
-            title: 'h2, h3, h4, [class*="title"], [class*="heading"]',
+            articles: 'article, [class*="post-card"], [class*="article"], [class*="story"]',
+            title: 'h2, h3, [class*="title"], [class*="heading"]',
             link: 'a',
-            image: 'img',
-            summary: 'p, [class*="excerpt"], [class*="summary"]'
+            image: 'img'
         }
     },
-    // NCAA Women's Basketball — CBS Sports RSS
-    {
-        id: 'cbs-ncaaw',
-        source: 'CBS Sports',
-        tag: 'NCAA Basketball',
-        type: 'rss',
-        url: 'https://www.cbssports.com/rss/headlines/college-basketball-women'
-    },
-    // NBL
-    {
-        id: 'nbl',
-        source: 'NBL',
-        tag: 'NBL',
-        type: 'scrape',
-        url: 'https://www.nbl.com.au/news',
-        baseUrl: 'https://www.nbl.com.au',
-        selectors: {
-            articles: 'article, [class*="news-card"], [class*="article"], [class*="card"]',
-            title: 'h2, h3, [class*="title"]',
-            link: 'a',
-            image: 'img',
-            summary: 'p, [class*="summary"], [class*="excerpt"]'
-        }
-    },
-    // WNBL
     {
         id: 'wnbl',
         source: 'WNBL',
@@ -148,27 +86,9 @@ const SOURCES = [
             articles: 'article, [class*="news-card"], [class*="article"], [class*="card"]',
             title: 'h2, h3, [class*="title"]',
             link: 'a',
-            image: 'img',
-            summary: 'p, [class*="summary"], [class*="excerpt"]'
+            image: 'img'
         }
     },
-    // FIBA
-    {
-        id: 'fiba',
-        source: 'FIBA',
-        tag: 'FIBA',
-        type: 'scrape',
-        url: 'https://www.fiba.basketball/en/news',
-        baseUrl: 'https://www.fiba.basketball',
-        selectors: {
-            articles: 'article, [class*="news"], [class*="article"]',
-            title: 'h2, h3, h4, [class*="title"]',
-            link: 'a',
-            image: 'img',
-            summary: 'p, [class*="summary"]'
-        }
-    },
-    // Unrivaled
     {
         id: 'unrivaled',
         source: 'Unrivaled',
@@ -180,8 +100,105 @@ const SOURCES = [
             articles: 'article, [class*="news"], [class*="post"], [class*="card"]',
             title: 'h2, h3, h4, [class*="title"], [class*="heading"]',
             link: 'a',
-            image: 'img',
-            summary: 'p, [class*="summary"], [class*="excerpt"]'
+            image: 'img'
+        }
+    },
+    {
+        id: 'bleacher-unrivaled',
+        source: 'Bleacher Report',
+        tag: 'Unrivaled',
+        type: 'scrape',
+        url: 'https://bleacherreport.com/unrivaled',
+        baseUrl: 'https://bleacherreport.com',
+        selectors: {
+            articles: 'article, [class*="atom"], [class*="card"], [class*="article"]',
+            title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
+            link: 'a',
+            image: 'img'
+        }
+    },
+    {
+        id: 'big3',
+        source: 'BIG3',
+        tag: 'BIG3',
+        type: 'scrape',
+        url: 'https://big3.com/news/',
+        baseUrl: 'https://big3.com',
+        selectors: {
+            articles: 'article, [class*="news"], [class*="post"], [class*="card"]',
+            title: 'h2, h3, h4, [class*="title"], [class*="heading"]',
+            link: 'a',
+            image: 'img'
+        }
+    },
+    {
+        id: 'fiba',
+        source: 'FIBA',
+        tag: 'FIBA',
+        type: 'scrape',
+        url: 'https://www.fiba.basketball/en/news',
+        baseUrl: 'https://www.fiba.basketball',
+        selectors: {
+            articles: 'article, [class*="news"], [class*="article"]',
+            title: 'h2, h3, h4, [class*="title"]',
+            link: 'a',
+            image: 'img'
+        }
+    },
+    {
+        id: 'euroleague',
+        source: 'EuroLeague',
+        tag: 'EuroLeague',
+        type: 'scrape',
+        url: 'https://www.euroleaguebasketball.net/euroleague/news/',
+        baseUrl: 'https://www.euroleaguebasketball.net',
+        selectors: {
+            articles: 'article, [class*="news"], [class*="card"], [class*="article"]',
+            title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
+            link: 'a',
+            image: 'img'
+        }
+    },
+    {
+        id: 'codesports-nbl',
+        source: 'Code Sports',
+        tag: 'NBL',
+        type: 'scrape',
+        url: 'https://www.codesports.com.au/basketball/nbl',
+        baseUrl: 'https://www.codesports.com.au',
+        selectors: {
+            articles: 'article, [class*="article"], [class*="story"], [class*="card"]',
+            title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
+            link: 'a',
+            image: 'img'
+        }
+    },
+    {
+        id: 'sportingnews-ncaa',
+        source: 'Sporting News',
+        tag: 'NCAA Basketball',
+        type: 'scrape',
+        url: 'https://www.sportingnews.com/us/ncaa-basketball/news',
+        baseUrl: 'https://www.sportingnews.com',
+        selectors: {
+            articles: 'article, [class*="article"], [class*="story"], [class*="card"]',
+            title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
+            link: 'a',
+            image: 'img'
+        }
+    },
+    {
+        id: 'australia-basketball',
+        source: 'Australia Basketball',
+        tag: 'Basketball Australia',
+        type: 'scrape',
+        url: 'https://www.australia.basketball/news',
+        baseUrl: 'https://www.australia.basketball',
+        selectors: {
+            articles: 'article, [class*="news"], [class*="article"], [class*="card"], [class*="post"]',
+            title: 'h2, h3, h4, [class*="title"], [class*="heading"]',
+            link: 'a',
+            image: 'img'
         }
     }
 ];
@@ -192,18 +209,10 @@ let postedUrls = new Set();
 async function loadPostedUrls() {
     try {
         console.log('Loading existing posts from Ghost...');
-        let page = 1;
-        let hasMore = true;
+        let page = 1, hasMore = true;
         while (hasMore) {
-            const posts = await ghost.posts.browse({
-                limit: 100,
-                page,
-                fields: 'id,twitter_description',
-                filter: 'tag:Auto-Posted'
-            });
-            posts.forEach(p => {
-                if (p.twitter_description) postedUrls.add(p.twitter_description);
-            });
+            const posts = await ghost.posts.browse({ limit: 100, page, fields: 'id,twitter_description', filter: 'tag:Auto-Posted' });
+            posts.forEach(p => { if (p.twitter_description) postedUrls.add(p.twitter_description); });
             hasMore = posts.meta && posts.meta.pagination && page < posts.meta.pagination.pages;
             page++;
         }
@@ -213,14 +222,14 @@ async function loadPostedUrls() {
     }
 }
 
-// ─── RSS fetch ─────────────────────────────────────────────────────────────
+// ─── Fetch helpers ─────────────────────────────────────────────────────────
 async function fetchRSS(source) {
     try {
         const feed = await parser.parseURL(source.url);
         return feed.items.slice(0, 20).map(item => ({
-            title: item.title,
+            title: (item.title || '').trim(),
             url: item.link,
-            summary: item.contentSnippet || '',
+            summary: (item.contentSnippet || '').slice(0, 300),
             image: extractRSSImage(item),
             source: source.source,
             tag: source.tag
@@ -239,13 +248,12 @@ function extractRSSImage(item) {
     return null;
 }
 
-// ─── Scrape fetch ──────────────────────────────────────────────────────────
 async function fetchScrape(source) {
     try {
         const res = await fetch(source.url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
             },
             timeout: 15000
         });
@@ -259,6 +267,7 @@ async function fetchScrape(source) {
             if (articles.length >= 20) return false;
             const $el = $(el);
 
+            // Get URL
             let url = $el.find(source.selectors.link).first().attr('href') || $el.closest('a').attr('href') || $el.attr('href');
             if (!url) return;
             if (url.startsWith('/')) url = source.baseUrl + url;
@@ -267,16 +276,21 @@ async function fetchScrape(source) {
             if (seenUrls.has(url)) return;
             seenUrls.add(url);
 
+            // Get title — must be meaningful
             const title = ($el.find(source.selectors.title).first().text() || $el.find('h1,h2,h3,h4').first().text()).trim();
-            if (!title || title.length < 5) return;
+            if (!title || title.length < 10) return;
+            // Skip obvious nav/section headers
+            const skipTitles = ['basketball', 'news', 'latest', 'home', 'menu', 'search', 'more', 'sports'];
+            if (skipTitles.includes(title.toLowerCase())) return;
 
+            // Get image
             let image = $el.find('img').first().attr('src') || $el.find('img').first().attr('data-src') || $el.find('img').first().attr('data-lazy-src');
             if (image && image.startsWith('/')) image = source.baseUrl + image;
             if (image && !image.startsWith('http')) image = null;
+            // Skip tiny placeholder/icon images
+            if (image && (image.includes('placeholder') || image.includes('blank') || image.includes('pixel'))) image = null;
 
-            const summary = ($el.find(source.selectors.summary).first().text() || '').trim().slice(0, 300);
-
-            articles.push({ title, url, summary, image: image || null, source: source.source, tag: source.tag });
+            articles.push({ title, url, image: image || null, source: source.source, tag: source.tag });
         });
 
         return articles;
@@ -286,7 +300,6 @@ async function fetchScrape(source) {
     }
 }
 
-// ─── OG image fetch ────────────────────────────────────────────────────────
 async function fetchOGImage(url) {
     try {
         const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ProperHoopsBot/1.0)' }, timeout: 8000 });
@@ -332,7 +345,7 @@ async function poll() {
     for (const source of SOURCES) {
         console.log(`→ ${source.id}`);
         const articles = source.type === 'rss' ? await fetchRSS(source) : await fetchScrape(source);
-        console.log(`  ${articles.length} articles found`);
+        console.log(`  ${articles.length} articles`);
 
         for (const article of articles) {
             if (postedUrls.has(article.url)) continue;
@@ -343,33 +356,22 @@ async function poll() {
     console.log(`\n✓ Done — ${totalNew} new articles posted.`);
 }
 
-// ─── Keep-alive HTTP server ────────────────────────────────────────────────
-// This also acts as an endpoint for an uptime monitor to ping every 10 mins
-// which keeps Render's free tier alive between polls
+// ─── HTTP server ───────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     if (req.url === '/poll' && req.method === 'POST') {
-        // Allow manual trigger via POST /poll
-        res.writeHead(200);
-        res.end('Poll triggered');
+        res.writeHead(200); res.end('Poll triggered');
         poll().catch(console.error);
     } else {
-        res.writeHead(200);
-        res.end(`ProperHoops RSS Poster running. Last check: ${new Date().toISOString()}`);
+        res.writeHead(200); res.end(`ProperHoops RSS Poster — ${new Date().toISOString()}`);
     }
-}).listen(PORT, () => console.log(`Health check server on port ${PORT}`));
+}).listen(PORT, () => console.log(`Server on port ${PORT}`));
 
 // ─── Start ─────────────────────────────────────────────────────────────────
-console.log(`Starting ProperHoops RSS Poster`);
-console.log(`Ghost: ${GHOST_URL}`);
-console.log(`Poll interval: every ${POLL_MINUTES} minutes`);
+console.log(`ProperHoops RSS Poster starting`);
+console.log(`Ghost: ${GHOST_URL} | Poll: every ${POLL_MINUTES}min | Dry run: ${DRY_RUN}`);
 
 loadPostedUrls().then(() => {
-    // Run immediately on startup
     poll().catch(console.error);
-
-    // Then use setInterval instead of node-cron — more reliable on Render free tier
-    setInterval(() => {
-        poll().catch(console.error);
-    }, POLL_MINUTES * 60 * 1000);
+    setInterval(() => poll().catch(console.error), POLL_MINUTES * 60 * 1000);
 });
