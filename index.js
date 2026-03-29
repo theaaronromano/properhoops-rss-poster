@@ -16,21 +16,34 @@ const parser = new RSSParser({ timeout: 10000, headers: { 'User-Agent': 'Mozilla
 
 // ─── Sources ───────────────────────────────────────────────────────────────
 const SOURCES = [
-    // ── RSS feeds (reliable) ──────────────────────────────────────────────
+    // ── RSS (reliable) ────────────────────────────────────────────────────
+    {
+        id: 'espn-nba',
+        source: 'ESPN',
+        tag: 'NBA',
+        type: 'rss',
+        url: 'https://www.espn.com/espn/rss/nba/news'
+    },
+    {
+        id: 'cbs-ncaam',
+        source: 'CBS Sports',
+        tag: 'NCAA Basketball',
+        type: 'rss',
+        url: 'https://www.cbssports.com/rss/headlines/college-basketball'
+    },
+    {
+        id: 'cbs-ncaaw',
+        source: 'CBS Sports',
+        tag: 'NCAA Basketball',
+        type: 'rss',
+        url: 'https://www.cbssports.com/rss/headlines/college-basketball-women'
+    },
     {
         id: 'highposthoops',
         source: 'High Post Hoops',
         tag: 'WNBA',
         type: 'rss',
         url: 'https://highposthoops.com/feed'
-    },
-    {
-        id: 'apnews-ncaaw',
-        source: 'AP News',
-        tag: 'NCAA Basketball',
-        type: 'rss',
-        url: 'https://rsshub.app/apnews/topics/womens-college-basketball',
-        customHeaders: { 'Accept': 'application/rss+xml, application/xml, text/xml' }
     },
 
     // ── Scrapers ──────────────────────────────────────────────────────────
@@ -53,11 +66,11 @@ const SOURCES = [
         source: 'Basketball Australia',
         tag: 'Basketball Australia',
         type: 'scrape',
-        url: 'https://www.basketball.com.au/',
+        url: 'https://www.basketball.com.au/news',
         baseUrl: 'https://www.basketball.com.au',
         selectors: {
-            articles: 'article, [class*="news"], [class*="card"], [class*="post"], [class*="item"]',
-            title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
+            articles: 'article, [class*="news"], [class*="card"], [class*="post"]',
+            title: 'h2, h3, h4, [class*="title"]',
             link: 'a',
             image: 'img'
         }
@@ -142,21 +155,6 @@ const SOURCES = [
         selectors: {
             articles: 'article, [class*="news"], [class*="article"]',
             title: 'h2, h3, h4, [class*="title"]',
-            link: 'a',
-            image: 'img'
-        }
-    },
-    {
-        id: 'euroleague',
-        source: 'EuroLeague',
-        tag: 'EuroLeague',
-        type: 'scrape',
-        url: 'https://www.euroleaguebasketball.net/euroleague/news/',
-        baseUrl: 'https://www.euroleaguebasketball.net',
-        delay: 5000,
-        selectors: {
-            articles: 'article, [class*="news"], [class*="card"], [class*="article"]',
-            title: 'h2, h3, h4, [class*="title"], [class*="headline"]',
             link: 'a',
             image: 'img'
         }
