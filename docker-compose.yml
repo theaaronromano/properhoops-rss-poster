@@ -7,7 +7,7 @@ services:
     volumes:
       - rss-data:/data
     environment:
-      - GHOST_URL=https://www.properhoops.au
+      - GHOST_URL=https://properhoops.au
       - GHOST_ADMIN_KEY=69c3503c0eefc50001bae904:bcefcb5444e460031f30fcbfb0d943324c99bfa207aa5d3afb51d61a708821c5
       - POLL_INTERVAL=*/30 * * * *
       - DRY_RUN=false
