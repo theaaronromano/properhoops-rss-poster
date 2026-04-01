@@ -5,7 +5,7 @@ const GhostAdminAPI = require('@tryghost/admin-api');
 const http = require('http');
 
 // ─── Config ────────────────────────────────────────────────────────────────
-const GHOST_URL = process.env.GHOST_URL || 'https://www.properhoops.au';
+const GHOST_URL = process.env.GHOST_URL || 'https://properhoops.au';
 const GHOST_ADMIN_KEY = process.env.GHOST_ADMIN_KEY || '69c3503c0eefc50001bae904:bcefcb5444e460031f30fcbfb0d943324c99bfa207aa5d3afb51d61a708821c5';
 const POLL_MINUTES = parseInt(process.env.POLL_MINUTES || '30');
 const DRY_RUN = process.env.DRY_RUN === 'true';
